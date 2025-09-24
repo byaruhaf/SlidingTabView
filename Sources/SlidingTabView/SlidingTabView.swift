@@ -89,6 +89,12 @@ public struct SlidingTabView<Content:View>: View{
   /// Maximum width for each tab (nil for equal distribution)
   let maxTabWidth: CGFloat?
 
+  /// Minimum width for each tab to prevent text truncation
+  let minTabWidth: CGFloat
+
+  /// Allow tabs to auto-size based on content instead of equal distribution
+  let allowDynamicTabWidth: Bool
+
   /// Environment values for dynamic type and color scheme
   @Environment(\.sizeCategory) private var sizeCategory
   @Environment(\.colorScheme) private var colorScheme
@@ -111,6 +117,8 @@ public struct SlidingTabView<Content:View>: View{
   ///   - selectionBarBackgroundHeight: Height of the selection bar background
   ///   - isScrollable: Enable horizontal scrolling for overflow tabs
   ///   - maxTabWidth: Maximum width for each tab (nil for equal distribution)
+  ///   - minTabWidth: Minimum width for each tab to prevent text truncation
+  ///   - allowDynamicTabWidth: Allow tabs to auto-size based on content
   ///   - content: ViewBuilder containing the content views for each tab
   public init(selection: Binding<Int>,
               tabs: [String],
@@ -126,6 +134,8 @@ public struct SlidingTabView<Content:View>: View{
               selectionBarBackgroundHeight: CGFloat = 1,
               isScrollable: Bool = false,
               maxTabWidth: CGFloat? = nil,
+              minTabWidth: CGFloat = 60,
+              allowDynamicTabWidth: Bool = false,
               @ViewBuilder content: @escaping () -> Content) {
     self._selection = selection
     self.tabs = tabs
@@ -141,6 +151,8 @@ public struct SlidingTabView<Content:View>: View{
     self.selectionBarBackgroundHeight = selectionBarBackgroundHeight
     self.isScrollable = isScrollable
     self.maxTabWidth = maxTabWidth
+    self.minTabWidth = minTabWidth
+    self.allowDynamicTabWidth = allowDynamicTabWidth
     self.content = content
   }
 
@@ -178,6 +190,8 @@ public struct SlidingTabView<Content:View>: View{
     HStack(spacing: 0) {
       ForEach(Array(tabs.enumerated()), id: \.element) { index, tab in
         tabButton(for: tab, at: index)
+          .frame(minWidth: allowDynamicTabWidth ? minTabWidth : nil)
+          .frame(maxWidth: allowDynamicTabWidth ? .infinity : nil)
       }
     }
   }
@@ -197,7 +211,7 @@ public struct SlidingTabView<Content:View>: View{
       selectTab(at: index)
     } label: {
       HStack {
-        if !isScrollable { Spacer() }
+        if !isScrollable && !allowDynamicTabWidth { Spacer() }
         Text(tab)
           .lineLimit(1)
           .font(font)
@@ -206,8 +220,11 @@ public struct SlidingTabView<Content:View>: View{
             ? activeAccentColor : inactiveAccentColor
           )
           .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        if !isScrollable { Spacer() }
+          .minimumScaleFactor(0.8)
+          .allowsTightening(true)
+        if !isScrollable && !allowDynamicTabWidth { Spacer() }
       }
+      .padding(.horizontal, allowDynamicTabWidth ? 12 : 0)
     }
     .frame(height: adaptiveTabHeight)
     .frame(maxWidth: isScrollable ? .infinity : nil)
